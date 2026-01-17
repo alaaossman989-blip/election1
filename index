@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=yes" />
+  <title>إدخال معلومات والنتائج</title>
+  <style>
+    :root{--bg:#f4f6f8;--card:#fff;--shadow:0 8px 22px rgba(0,0,0,.08);--blue:#0b5fff;--dark:#222;--green:#0a7a1f;--border:#d7dbe0;}
+    body{font-family: Arial, sans-serif;margin:0;background:var(--bg);color:#111}
+    .page{display:none}
+    .page.active{display:block}
+    .wrap{max-width:1300px;margin:0 auto;padding:16px}
+    .topbar{position:sticky;top:0;z-index:10;background:var(--card);box-shadow:0 6px 18px rgba(0,0,0,.08);padding:12px 14px}
+    .topbar .row{max-width:1300px;margin:0 auto;display:flex;gap:10px;align-items:center;justify-content:space-between}
+    .title{font-weight:900;font-size:16px}
+    .card{background:var(--card);border-radius:14px;box-shadow:var(--shadow);padding:14px;margin-bottom:14px}
+    .btn{border:0;border-radius:12px;padding:14px 14px;font-size:16px;font-weight:900;cursor:pointer}
+    .btn.full{width:100%}
+    .btn.blue{background:var(--blue);color:#fff}
+    .btn.dark{background:var(--dark);color:#fff}
+    .btn.green{background:var(--green);color:#fff}
+    .btns{display:grid;gap:14px}
+    table{width:100%;border-collapse:collapse;background:#fff}
+    
+    /* Dinnieh table: make cells wider for 10 columns on mobile */
+    #dinniehTable{min-width:1200px;table-layout:fixed}
+    #dinniehTable th,#dinniehTable td{min-width:110px;padding:10px}
+    #dinniehTable td:first-child{min-width:220px}
+    #dinniehTable input{font-size:14px;padding:10px}
+th,td{border:1px solid var(--border);padding:7px;font-size:13px;text-align:right}
+    th{background:#eef1f4;font-weight:900}
+    input,select{width:100%;box-sizing:border-box;padding:7px 9px;border:1px solid var(--border);border-radius:10px;font-size:13px;background:#fff}
+    input[type="number"]{direction:ltr;text-align:left}
+    input[readonly]{background:#f8fafc}
+    .scroll{overflow:auto;border-radius:12px}
+    .summary{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+    .box{border:1px solid #e5e7eb;border-radius:12px;padding:12px;background:#fafafa}
+    .box .label{font-weight:900;margin-bottom:6px}
+    .box .val{direction:ltr;text-align:left;background:#fff}
+    .notice{font-weight:900;color:var(--green);margin:10px 0 0;display:none}
+    .warn{font-weight:900;color:#b00020;margin:10px 0 0;line-height:1.5;display:none}
+    .grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));align-items:start}
+  
+    /* Sticky first column in Dinnieh (RTL) */
+    #dinniehTable td:first-child{
+      position: sticky;
+      right: 0; /* RTL: stick to the right edge */
+      z-index: 3;
+      background: #fff;
+      box-shadow: -6px 0 10px rgba(0,0,0,.06);
+    }
+    /* Keep header row (row 0) label cell above others */
+    #dinniehTable tr:first-child td:first-child{
+      z-index: 5;
+      background: #eef1f4;
+      font-weight: 900;
+    }
+    /* Keep grand total row label cell above others */
+    #dinniehTable tr:nth-child(2) td:first-child{
+      z-index: 4;
+      background: #fff;
+    }
+
+
+
+/* Sticky top two rows in Dinnieh (keep header + sum visible while scrolling) */
+#dinniehTable{ --dinniehRow0H: 48px; } /* will be updated by JS after render */
+
+/* Row 1 (header row) */
+#dinniehTable tr:nth-child(1) td{
+  position: sticky;
+  top: 0;
+  z-index: 6;
+  background: #eef1f4;
+  font-weight: 900;
+  box-shadow: 0 6px 10px rgba(0,0,0,.06);
+}
+
+/* Row 2 (sum row) sits under header row */
+#dinniehTable tr:nth-child(2) td{
+  position: sticky;
+  top: var(--dinniehRow0H);
+  z-index: 5;
+  background: #fff;
+  box-shadow: 0 6px 10px rgba(0,0,0,.04);
+}
+
+/* Top-right corner cells (first column + top rows) need highest stacking */
+#dinniehTable tr:nth-child(1) td:first-child{
+  top: 0;
+  right: 0;
+  z-index: 9;
+  background: #eef1f4;
+  box-shadow: -6px 0 10px rgba(0,0,0,.06), 0 6px 10px rgba(0,0,0,.06);
+}
+#dinniehTable tr:nth-child(2) td:first-child{
+  top: var(--dinniehRow0H);
+  right: 0;
+  z-index: 8;
+  background: #fff;
+  box-shadow: -6px 0 10px rgba(0,0,0,.06), 0 6px 10px rgba(0,0,0,.04);
+}
+
+
+
+/* Dinnieh scroll container: make vertical scroll happen inside so sticky rows work */
+.dinniehScroll{max-height: calc(100vh - 140px); overflow:auto; -webkit-overflow-scrolling: touch;}
+
+</style>
+</head>
+<body>
+
+<!-- الصفحة الرئيسية -->
+<div class="page active" id="home">
+  <div class="wrap">
+    <div class="card">
+      <div class="btns">
+        <button type="button" class="btn full blue" id="goInput">إدخال معلومات</button>
+        <button type="button" class="btn full dark" id="goResults">النتائج</button>
+        <button type="button" class="btn full dark" id="goQuota" style="background:#444;">الحاصل</button>
+        <button type="button" class="btn full dark" id="goRanking" style="background:#333;">ترتيب المرشحين</button>
+        <button type="button" class="btn full dark" id="goDinnieh" style="background:#222;">الضنية</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- صفحة إدخال معلومات -->
+<div class="page" id="inputPage">
+  <div class="topbar">
+    <div class="row">
+      <div class="title">إدخال معلومات (100 سطر)</div>
+      <div style="display:flex;gap:10px">
+        <button type="button" class="btn green" id="saveCandidatesBtn">حفظ</button>
+        <button type="button" class="btn dark" id="backFromInput">رجوع</button>
+      </div>
+    </div>
+  </div>
+  <div class="wrap">
+    <div class="card">
+      <div class="scroll">
+        <table id="candTable">
+          <thead>
+            <tr>
+              <th style="width:65%">اسم المرشح</th>
+              <th style="width:35%">أصوات</th>
+            </tr>
+          </thead>
+          <tbody id="candTbody"></tbody>
+        </table>
+      </div>
+      <div id="candSavedMsg" class="notice">تم الحفظ ✔</div>
+    </div>
+  </div>
+</div>
+
+<!-- صفحة النتائج -->
+<div class="page" id="resultsPage">
+  <div class="topbar">
+    <div class="row">
+      <div class="title">النتائج (11 جدول)</div>
+      <div style="display:flex;gap:10px">
+        <button type="button" class="btn green" id="saveResultsBtn">حفظ</button>
+        <button type="button" class="btn dark" id="backFromResults">رجوع</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="card">
+      <div class="summary">
+        <div class="box">
+          <div class="label">أوراق بيضاء</div>
+          <input id="whitePapers" type="number" min="0" step="1" value="0">
+        </div>
+        <div class="box">
+          <div class="label">اجمالي (a) = مجموع السطر الأول (العمود الثاني) في كل الجداول + أوراق بيضاء</div>
+          <input class="val" id="aVal" readonly value="0">
+        </div>
+        <div class="box">
+          <div class="label">الحاصل الأول (b) = a ÷ 11 (رقمين)</div>
+          <input class="val" id="bVal" readonly value="0.00">
+        </div>
+        <div class="box">
+          <div class="label">((a − مجموع الجداول التي سطرها الأول أقل من b) ÷ 11) (ثلاث أرقام)</div>
+          <input class="val" id="cVal" readonly value="0.000">
+        </div>
+      </div>
+      <div id="resultsSavedMsg" class="notice">تم حفظ النتائج ✔</div>
+      <div id="warnMsg" class="warn"></div>
+    </div>
+
+    <div id="tablesWrap" class="grid"></div>
+  </div>
+</div>
+
+<!-- صفحة الحاصل -->
+<div class="page" id="quotaPage">
+  <div class="topbar">
+    <div class="row">
+      <div class="title">الحاصل (الجداول 1 إلى 11)</div>
+      <button type="button" class="btn dark" id="backFromQuota">رجوع</button>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="card">
+      <div class="summary">
+        <div class="box">
+          <div class="label">المقام = (a − مجموع الجداول التي سطرها الأول أقل من b) ÷ 11</div>
+          <input id="quotaDen" class="val" readonly value="0.000">
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="scroll">
+        <table id="quotaTable">
+          <thead>
+            <tr>
+              <th style="width:60%">اسم الجدول</th>
+              <th style="width:40%">الناتج (3 أرقام)</th>
+            </tr>
+          </thead>
+          <tbody id="quotaTbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- صفحة ترتيب المرشحين (قائمة المناطق) -->
+<div class="page" id="rankingMenuPage">
+  <div class="topbar">
+    <div class="row">
+      <div class="title">ترتيب المرشحين</div>
+      <button type="button" class="btn dark" id="backFromRankingMenu">رجوع</button>
+    </div>
+  </div>
+  <div class="wrap">
+    <div class="card">
+      <div class="btns">
+        <button type="button" class="btn full blue" id="rankTripoli">طرابلس</button>
+        <button type="button" class="btn full dark" id="rankDinnieh">الضنية</button>
+        <button type="button" class="btn full dark" id="rankMinieh">المنية</button>
+      </div>
+      <div class="warn" id="rankingWarn" style="display:none;margin-top:12px"></div>
+    </div>
+  </div>
+</div>
+
+<!-- صفحة ترتيب المرشحين (الجدول) -->
+<div class="page" id="rankingPage">
+  <div class="topbar">
+    <div class="row">
+      <div class="title" id="rankingTitle">ترتيب المرشحين</div>
+      <button type="button" class="btn dark" id="backFromRanking">رجوع</button>
+    </div>
+  </div>
+  <div class="wrap">
+    <div class="card">
+      <div class="scroll">
+        <table id="rankingTable">
+          <thead>
+            <tr>
+              <th style="width:55%">اسم المرشح</th>
+              <th style="width:15%">أصوات</th>
+              <th style="width:30%">الجدول</th>
+            </tr>
+          </thead>
+          <tbody id="rankingTbody"></tbody>
+        </table>
+      </div>
+      <div class="warn" id="rankingEmpty" style="display:none;margin-top:12px"></div>
+    </div>
+  </div>
+</div>
+
+
+<!-- صفحة الضنية (جدول 41 سطر / 10 عواميد) -->
+<div class="page" id="dinniehPage">
+  <div class="topbar">
+    <div class="row">
+      <div class="title">الضنية</div>
+      <button type="button" class="btn dark" id="backFromDinnieh">رجوع</button>
+    </div>
+  </div>
+  <div class="wrap">
+    <div class="card">
+      <div class="scroll dinniehScroll">
+        <table id="dinniehTable">
+          <tbody id="dinniehTbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+<script>
+  const KEY_CANDS = "candidates_app_v3";
+  const KEY_STATE = "results_state_app_v3";
+
+  function showPage(id){
+    document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
+    document.getElementById(id).classList.add("active");
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  }
+
+
+
+  // ---------- Dinnieh table (41x10) ----------
+  const KEY_DINNIEH = "dinnieh_table_v1";
+
+  const DINNIEH_NAMES = [
+    "الحازمية","الخرنوب","الروضة","السفيرة",
+    "القطين","القمامين","المطل","ايزال","بحويتا","بخعون","بطرماز","بقاعصفرين","بقرصونا","بيت الفقس","بيت حاويك",
+    "حرف السياد","حقل العزيمة","حوارة","دبعل","ديرنبوح","زغرتغرين","سير","طاران","عاصون","عزقي","عيمار","عين التينة",
+    "قرحيا","قرصيتا","كرم المهر","كفربنين","كفرحبو","كفرشلان","كهف الملول","مراح السريج","مراح السفيرة","مزرعة القرين",
+    "نمرين","موظفون"
+  ];
+
+  let dinniehBuilt = false;
+
+
+function updateDinniehStickyOffsets(){
+  const table = document.getElementById("dinniehTable");
+  if(!table) return;
+  const r0 = table.querySelector("tbody tr:nth-child(1)");
+  if(!r0) return;
+  // Measure the first row height so the second sticky row sits exactly beneath it
+  const h = Math.max(40, Math.round(r0.getBoundingClientRect().height || r0.offsetHeight || 48));
+  table.style.setProperty("--dinniehRow0H", h + "px");
+}
+
+let dinniehResizeHooked = false;
+
+
+  function buildDinniehTable(){
+    if(dinniehBuilt) return;
+    dinniehBuilt = true;
+
+    const tbody = document.getElementById("dinniehTbody");
+    tbody.innerHTML = "";
+
+    const makeNum = (readonly=false)=>{
+      const inp = document.createElement("input");
+      inp.type = "number";
+      inp.min = "0";
+      inp.step = "1";
+      if(readonly) inp.readOnly = true;
+      return inp;
+    };
+
+    // 41 rows total:
+    // row 0: المنطقة + 9 خلايا (إدخال)
+    // row 1: جمع السطر الثاني + 9 خلايا (جمع/readonly)
+    // rows 2..40: أسماء القرى + 9 خلايا (إدخال أرقام)
+    for(let r=0;r<41;r++){
+      const tr = document.createElement("tr");
+
+      // col 0 (labels / totals)
+      const td0 = document.createElement("td");
+      if(r===0){
+        td0.textContent = "المنطقة";
+      }else if(r===1){
+        // Grand total of row 2 (sum row): sum of columns 2..10
+        const inp = document.createElement("input");
+        inp.type = "number";
+        inp.readOnly = true;
+        inp.dataset.role = "dinniehGrand";
+        inp.value = "0";
+        td0.appendChild(inp);
+      }else{
+        td0.textContent = DINNIEH_NAMES[r-2] || "";
+      }
+      tr.appendChild(td0);
+
+      for(let c=1;c<10;c++){
+        const td = document.createElement("td");
+        if(r===0){
+          const inp = document.createElement("input");
+          inp.type = "text";
+          inp.dataset.r = String(r);
+          inp.dataset.c = String(c);
+          inp.dataset.role = "dinniehHeader";
+          td.appendChild(inp);
+        }else if(r===1){
+          const inp = makeNum(true);
+          inp.dataset.r = String(r);
+          inp.dataset.c = String(c);
+          inp.dataset.role = "dinniehSum";
+          td.appendChild(inp);
+        }else{
+          const inp = makeNum(false);
+          inp.dataset.r = String(r);
+          inp.dataset.c = String(c);
+          inp.dataset.role = "dinniehData";
+          td.appendChild(inp);
+        }
+        tr.appendChild(td);
+      }
+      tbody.appendChild(tr);
+    }
+
+
+// Update sticky offsets after the table is in the DOM
+requestAnimationFrame(()=>updateDinniehStickyOffsets());
+if(!dinniehResizeHooked){
+  dinniehResizeHooked = true;
+  window.addEventListener("resize", ()=>requestAnimationFrame(updateDinniehStickyOffsets));
+}
+
+    // Load saved
+    loadDinnieh();
+    recomputeDinniehSums();
+
+    // Events: save + recompute
+    const table = document.getElementById("dinniehTable");
+    table.addEventListener("input", ()=>{
+      recomputeDinniehSums();
+      saveDinnieh();
+    });
+  }
+
+  function readDinniehState(){
+    const header = [];
+    for(let c=1;c<10;c++){
+      const el = document.querySelector(`input[data-role="dinniehHeader"][data-r="0"][data-c="${c}"]`);
+      header.push(el ? (el.value || "") : "");
+    }
+
+    const data = [];
+    for(let r=2;r<41;r++){
+      const row = [];
+      for(let c=1;c<10;c++){
+        const el = document.querySelector(`input[data-role="dinniehData"][data-r="${r}"][data-c="${c}"]`);
+        const v = (el ? (el.value || "").trim() : "");
+        row.push(v);
+      }
+      data.push(row);
+    }
+
+    return {header, data};
+  }
+
+  function applyDinniehState(st){
+    if(!st) return;
+
+    if(Array.isArray(st.header)){
+      for(let c=1;c<10;c++){
+        const el = document.querySelector(`input[data-role="dinniehHeader"][data-r="0"][data-c="${c}"]`);
+        if(el) el.value = st.header[c-1] ?? "";
+      }
+    }
+
+    if(Array.isArray(st.data)){
+      for(let r=2;r<41;r++){
+        const rr = r-2;
+        for(let c=1;c<10;c++){
+          const el = document.querySelector(`input[data-role="dinniehData"][data-r="${r}"][data-c="${c}"]`);
+          if(!el) continue;
+          const v = (st.data[rr] && typeof st.data[rr][c-1] !== "undefined") ? st.data[rr][c-1] : "";
+          el.value = (v===0) ? "0" : (v ?? "");
+        }
+      }
+    }
+
+    recomputeDinniehSums();
+  }
+
+  function saveDinnieh(){
+    try{
+      const st = readDinniehState();
+      localStorage.setItem(KEY_DINNIEH, JSON.stringify(st));
+    }catch(e){}
+  }
+
+  function loadDinnieh(){
+    const raw = localStorage.getItem(KEY_DINNIEH);
+    if(!raw) return;
+    try{
+      const st = JSON.parse(raw);
+      applyDinniehState(st);
+    }catch(e){}
+  }
+
+  function recomputeDinniehSums(){
+    let grand = 0;
+    for(let c=1;c<10;c++){
+      let sum = 0;
+      for(let r=2;r<41;r++){
+        const el = document.querySelector(`input[data-role="dinniehData"][data-r="${r}"][data-c="${c}"]`);
+        const v = Number(el?.value || 0) || 0;
+        sum += v;
+      }
+      const sumEl = document.querySelector(`input[data-role="dinniehSum"][data-r="1"][data-c="${c}"]`);
+      if(sumEl) sumEl.value = String(sum);
+      grand += sum;
+    }
+    const grandEl = document.querySelector(`input[data-role="dinniehGrand"]`);
+    if(grandEl) grandEl.value = String(grand);
+  }
+
+  // ---------- Input page ----------
+  function buildInputTable(){
+    const tbody = document.getElementById("candTbody");
+    tbody.innerHTML = "";
+    for(let i=0;i<100;i++){
+      const tr = document.createElement("tr");
+      const td1 = document.createElement("td");
+      const td2 = document.createElement("td");
+
+      const name = document.createElement("input");
+      name.dataset.i = i; name.dataset.k = "name";
+
+      const votes = document.createElement("input");
+      votes.type = "number"; votes.min="0"; votes.step="1";
+      votes.dataset.i = i; votes.dataset.k = "votes";
+
+      td1.appendChild(name);
+      td2.appendChild(votes);
+      tr.appendChild(td1);
+      tr.appendChild(td2);
+      tbody.appendChild(tr);
+    }
+  }
+
+  function loadCandidates(){
+    const raw = localStorage.getItem(KEY_CANDS);
+    if(!raw) return;
+    try{
+      const arr = JSON.parse(raw) || [];
+      for(let i=0;i<100;i++){
+        const n = document.querySelector(`input[data-i="${i}"][data-k="name"]`);
+        const v = document.querySelector(`input[data-i="${i}"][data-k="votes"]`);
+        if(!n || !v) continue;
+        n.value = (arr[i] && arr[i].name) ? arr[i].name : "";
+        const vv = (arr[i] && typeof arr[i].votes !== "undefined") ? arr[i].votes : "";
+        v.value = (vv===0) ? "0" : (vv ?? "");
+      }
+    }catch(e){}
+  }
+
+  function saveCandidates(){
+    const arr = [];
+    for(let i=0;i<100;i++){
+      const n = (document.querySelector(`input[data-i="${i}"][data-k="name"]`)?.value || "").trim();
+      const vStr = (document.querySelector(`input[data-i="${i}"][data-k="votes"]`)?.value || "").trim();
+      const v = vStr==="" ? "" : Math.max(0, parseInt(vStr,10)||0);
+      arr.push({name:n, votes:v});
+    }
+    localStorage.setItem(KEY_CANDS, JSON.stringify(arr));
+    const msg = document.getElementById("candSavedMsg");
+    msg.style.display = "block";
+    setTimeout(()=>msg.style.display="none", 2000);
+  }
+
+  function readCandidateList(){
+    const raw = localStorage.getItem(KEY_CANDS);
+    if(!raw) return [];
+    try{
+      const arr = JSON.parse(raw) || [];
+      return arr
+        .map(x=>({name:(x.name||"").trim(), votes:(x.votes===""?0:(parseInt(x.votes,10)||0))}))
+        .filter(x=>x.name.length>0);
+    }catch(e){ return []; }
+  }
+
+  // ---------- Results state ----------
+  function loadState(){
+    const raw = localStorage.getItem(KEY_STATE);
+    if(!raw) return null;
+    try{ return JSON.parse(raw); }catch(e){ return null; }
+  }
+  function saveState(state){
+    localStorage.setItem(KEY_STATE, JSON.stringify(state));
+  }
+
+  // ---------- Results UI ----------
+  function renderResults(){
+    const candidates = readCandidateList();
+    const warn = document.getElementById("warnMsg");
+    warn.style.display = "none"; warn.textContent = "";
+
+    if(candidates.length===0){
+      warn.style.display = "block";
+      warn.textContent = "⚠️ لا توجد أسماء مرشحين محفوظة. اذهب إلى (إدخال معلومات) واحفظ الأسماء أولاً.";
+    }
+
+    const candMap = new Map(candidates.map(c=>[c.name, c.votes]));
+    const optionsHTML = ['<option value=""></option>']
+      .concat(candidates.map(c=>`<option value="${escapeHtml(c.name)}">${escapeHtml(c.name)}</option>`))
+      .join("");
+
+    const regionOptionsHTML = [
+      '<option value=""></option>',
+      '<option value="طرابلس">طرابلس</option>',
+      '<option value="الضنية">الضنية</option>',
+      '<option value="المنية">المنية</option>'
+    ].join("");
+
+    const wrap = document.getElementById("tablesWrap");
+    wrap.innerHTML = "";
+
+    const saved = loadState() || {
+      whitePapers: 0,
+      tableNames: Array.from({length:11}, (_,i)=>("الجدول " + (i+1))),
+      tables: Array.from({length:11}, ()=>({listVotes:0, picks:Array(11).fill(""), regions:Array(11).fill("")}))
+    };
+
+    // set white papers
+    const wp = document.getElementById("whitePapers");
+    wp.value = String(Number(saved.whitePapers||0) || 0);
+
+    for(let t=0;t<11;t++){
+      const card = document.createElement("div");
+      card.className = "card";
+
+      const ttl = document.createElement("div");
+      ttl.style.fontWeight = "900";
+      ttl.style.margin = "0 0 8px";
+
+      const nameRow = document.createElement("div");
+      nameRow.style.display = "flex";
+      nameRow.style.gap = "10px";
+      nameRow.style.alignItems = "center";
+
+      const nameLbl = document.createElement("div");
+      nameLbl.style.fontWeight = "900";
+      nameLbl.textContent = "اسم الجدول:";
+
+      const nameInp = document.createElement("input");
+      nameInp.dataset.t = t;
+      nameInp.dataset.role = "tableName";
+      nameInp.value = (saved.tableNames && saved.tableNames[t]) ? saved.tableNames[t] : ("الجدول " + (t+1));
+
+      nameRow.appendChild(nameLbl);
+      nameRow.appendChild(nameInp);
+      ttl.appendChild(nameRow);
+      card.appendChild(ttl);
+
+      const table = document.createElement("table");
+      table.innerHTML = '<thead><tr><th style="width:50%">البند</th><th style="width:25%">القيمة</th><th style="width:25%">المنطقة</th></tr></thead>';
+      const tbody = document.createElement("tbody");
+
+      // row 1 total (computed)
+      const r1 = document.createElement("tr");
+      r1.innerHTML = "<td>أصوات اللائحة</td>";
+      const td1 = document.createElement("td");
+      const total = document.createElement("input");
+      total.type="number"; total.readOnly=true;
+      total.dataset.t=t; total.dataset.role="row1";
+      td1.appendChild(total);
+      r1.appendChild(td1);
+      r1.appendChild(document.createElement("td"));
+      tbody.appendChild(r1);
+
+      // row 2 listVotes (manual)
+      const r2 = document.createElement("tr");
+      r2.innerHTML = "<td>أصوات اللائحة فقط</td>";
+      const td2 = document.createElement("td");
+      const listInp = document.createElement("input");
+      listInp.type="number"; listInp.min="0"; listInp.step="1";
+      listInp.dataset.t=t; listInp.dataset.role="listVotes";
+      listInp.value = String((saved.tables[t] && saved.tables[t].listVotes) ? saved.tables[t].listVotes : 0);
+      td2.appendChild(listInp);
+      r2.appendChild(td2);
+      r2.appendChild(document.createElement("td"));
+      tbody.appendChild(r2);
+
+      // rows 3..13 picks (+ المنطقة)
+      const picks = (saved.tables[t] && saved.tables[t].picks) ? saved.tables[t].picks : Array(11).fill("");
+      const regions = (saved.tables[t] && saved.tables[t].regions) ? saved.tables[t].regions : Array(11).fill("");
+      for(let i=0;i<11;i++){
+        const tr = document.createElement("tr");
+
+        const tdA = document.createElement("td");
+        const sel = document.createElement("select");
+        sel.innerHTML = optionsHTML;
+        sel.dataset.t=t; sel.dataset.i=i; sel.dataset.role="pick";
+        sel.value = picks[i] || "";
+        tdA.appendChild(sel);
+
+        const tdB = document.createElement("td");
+        const vInp = document.createElement("input");
+        vInp.type="number"; vInp.readOnly=true;
+        vInp.dataset.t=t; vInp.dataset.i=i; vInp.dataset.role="candVotes";
+        vInp.value = String(sel.value ? (candMap.get(sel.value) || 0) : 0);
+        tdB.appendChild(vInp);
+
+        const tdC = document.createElement("td");
+        const regSel = document.createElement("select");
+        regSel.innerHTML = regionOptionsHTML;
+        regSel.dataset.t=t; regSel.dataset.i=i; regSel.dataset.role="region";
+        regSel.value = regions[i] || "";
+        tdC.appendChild(regSel);
+
+        tr.appendChild(tdA);
+        tr.appendChild(tdB);
+        tr.appendChild(tdC);
+        tbody.appendChild(tr);
+      }
+
+      table.appendChild(tbody);
+      card.appendChild(table);
+      wrap.appendChild(card);
+    }
+
+    // Live recompute events
+    wrap.oninput = (e)=>{
+      if(!e || !e.target) return;
+      if(e.target.matches('input[data-role="listVotes"]') || e.target.matches('input[data-role="tableName"]')){
+        recomputeAll(candidates);
+      }else if(e.target.matches('select[data-role="region"]')){
+        // المنطقة لا تؤثر على الحسابات، لكن نحافظ على تحديث عام
+        recomputeAll(candidates);
+      }
+    };
+    wrap.onchange = (e)=>{
+      if(!e || !e.target) return;
+      if(e.target.matches('select[data-role="pick"]')){
+        // update its votes cell
+        const t = Number(e.target.dataset.t);
+        const i = Number(e.target.dataset.i);
+        const name = e.target.value || "";
+        const vEl = document.querySelector(`input[data-role="candVotes"][data-t="${t}"][data-i="${i}"]`);
+        if(vEl) vEl.value = String(name ? (candMap.get(name) || 0) : 0);
+        recomputeAll(candidates);
+      }
+    };
+    wp.oninput = ()=>recomputeAll(candidates);
+
+    recomputeAll(candidates);
+  }
+
+  function recomputeAll(candidates){
+    const candMap = new Map(candidates.map(c=>[c.name, c.votes]));
+
+    const tableTotals = [];
+    for(let t=0;t<11;t++){
+      const listVotes = Number(document.querySelector(`input[data-role="listVotes"][data-t="${t}"]`)?.value || 0) || 0;
+
+      // Ensure candidate vote inputs reflect selection (safe)
+      for(let i=0;i<11;i++){
+        const sel = document.querySelector(`select[data-role="pick"][data-t="${t}"][data-i="${i}"]`);
+        const vEl = document.querySelector(`input[data-role="candVotes"][data-t="${t}"][data-i="${i}"]`);
+        if(sel && vEl){
+          const name = sel.value || "";
+          vEl.value = String(name ? (candMap.get(name) || 0) : 0);
+        }
+      }
+
+      const candVotesEls = Array.from(document.querySelectorAll(`input[data-role="candVotes"][data-t="${t}"]`));
+      const candSum = candVotesEls.reduce((acc,el)=>acc + (Number(el.value||0)||0), 0);
+
+      const total = listVotes + candSum;
+      const totalEl = document.querySelector(`input[data-role="row1"][data-t="${t}"]`);
+      if(totalEl) totalEl.value = String(total);
+
+      tableTotals.push(total);
+    }
+
+    const white = Number(document.getElementById("whitePapers")?.value || 0) || 0;
+    const a = tableTotals.reduce((x,y)=>x+y,0) + white;
+    const b = a / 11;
+    const subtract = tableTotals.filter(v=>v < b).reduce((x,y)=>x+y,0);
+    const c = (a - subtract) / 11;
+
+    document.getElementById("aVal").value = String(a);
+    document.getElementById("bVal").value = isFinite(b) ? b.toFixed(2) : "0.00";
+    document.getElementById("cVal").value = isFinite(c) ? c.toFixed(3) : "0.000";
+  }
+
+  function saveResults(){
+    const candidates = readCandidateList();
+    const state = {
+      whitePapers: Number(document.getElementById("whitePapers")?.value || 0) || 0,
+      tableNames: [],
+      tables: []
+    };
+
+    for(let t=0;t<11;t++){
+      const nameEl = document.querySelector(`input[data-role="tableName"][data-t="${t}"]`);
+      state.tableNames.push(nameEl ? (nameEl.value || "").trim() : ("الجدول " + (t+1)));
+
+      const listVotesEl = document.querySelector(`input[data-role="listVotes"][data-t="${t}"]`);
+      const listVotes = Number(listVotesEl?.value || 0) || 0;
+
+      const picks = [];
+      const regions = [];
+      for(let i=0;i<11;i++){
+        const sel = document.querySelector(`select[data-role="pick"][data-t="${t}"][data-i="${i}"]`);
+        const reg = document.querySelector(`select[data-role="region"][data-t="${t}"][data-i="${i}"]`);
+        picks.push(sel ? (sel.value || "") : "");
+        regions.push(reg ? (reg.value || "") : "");
+      }
+
+      state.tables.push({listVotes, picks, regions});
+    }
+
+    state.summary = {
+      a: document.getElementById("aVal").value,
+      b: document.getElementById("bVal").value,
+      c: document.getElementById("cVal").value
+    };
+
+    saveState(state);
+
+    const msg = document.getElementById("resultsSavedMsg");
+    msg.style.display = "block";
+    setTimeout(()=>msg.style.display="none", 2000);
+  }
+
+  // ---------- Quota page ----------
+  function renderQuota(){
+    const candidates = readCandidateList();
+    const candMap = new Map(candidates.map(c=>[c.name, c.votes]));
+    const saved = loadState();
+
+    const tbody = document.getElementById("quotaTbody");
+    tbody.innerHTML = "";
+
+    if(!saved || !saved.tables){
+      document.getElementById("quotaDen").value = "0.000";
+      for(let t=0;t<11;t++){
+        const tr = document.createElement("tr");
+        const td1 = document.createElement("td"); td1.textContent = "الجدول " + (t+1);
+        const td2 = document.createElement("td"); const inp = document.createElement("input"); inp.type="number"; inp.readOnly=true; inp.value="0.000"; td2.appendChild(inp);
+        tr.appendChild(td1); tr.appendChild(td2); tbody.appendChild(tr);
+      }
+      return;
+    }
+
+    const white = Number(saved.whitePapers || 0) || 0;
+
+    const tableTotals = [];
+    for(let t=0;t<11;t++){
+      const tState = saved.tables[t] || {listVotes:0, picks:Array(11).fill("")};
+      const listVotes = Number(tState.listVotes || 0) || 0;
+      const picks = tState.picks || [];
+      let candSum = 0;
+      for(let i=0;i<11;i++){
+        const name = picks[i] || "";
+        candSum += name ? (candMap.get(name) || 0) : 0;
+      }
+      tableTotals.push(listVotes + candSum);
+    }
+
+    const a = tableTotals.reduce((x,y)=>x+y,0) + white;
+    const b = a / 11;
+    const subtract = tableTotals.filter(v=>v < b).reduce((x,y)=>x+y,0);
+    const den = (a - subtract) / 11;
+
+    document.getElementById("quotaDen").value = isFinite(den) ? den.toFixed(3) : "0.000";
+
+    for(let t=0;t<11;t++){
+      const name = (saved.tableNames && saved.tableNames[t] && String(saved.tableNames[t]).trim().length>0)
+        ? saved.tableNames[t]
+        : ("الجدول " + (t+1));
+
+      const total = tableTotals[t];
+      let out = 0;
+      // شرط: إذا كان مجموع الجدول أقل من b => 0
+      if(isFinite(den) && den !== 0 && total >= b){
+        out = total / den;
+      }else{
+        out = 0;
+      }
+
+      const tr = document.createElement("tr");
+      const td1 = document.createElement("td"); td1.textContent = name;
+      const td2 = document.createElement("td");
+      const inp = document.createElement("input");
+      inp.type="number"; inp.readOnly=true;
+      inp.value = (Number(out)||0).toFixed(3);
+      td2.appendChild(inp);
+
+      tr.appendChild(td1); tr.appendChild(td2);
+      tbody.appendChild(tr);
+    }
+  }
+  // ---------- Ranking (ترتيب المرشحين) ----------
+  function renderRankingMenu(){
+    const warn = document.getElementById("rankingWarn");
+    warn.style.display = "none";
+    warn.textContent = "";
+
+    const saved = loadState();
+    if(!saved || !saved.tables){
+      warn.style.display = "block";
+      warn.textContent = "⚠️ لا توجد نتائج محفوظة بعد. اذهب إلى (النتائج) واضغط حفظ أولاً.";
+    }
+  }
+
+  function renderRanking(region){
+    const candidates = readCandidateList();
+    const candMap = new Map(candidates.map(c=>[c.name, c.votes]));
+    const saved = loadState();
+
+    const title = document.getElementById("rankingTitle");
+    title.textContent = "ترتيب المرشحين - " + region;
+
+    const tbody = document.getElementById("rankingTbody");
+    const empty = document.getElementById("rankingEmpty");
+    tbody.innerHTML = "";
+    empty.style.display = "none";
+    empty.textContent = "";
+
+    if(!saved || !saved.tables){
+      empty.style.display = "block";
+      empty.textContent = "⚠️ لا توجد نتائج محفوظة بعد. اذهب إلى (النتائج) واضغط حفظ أولاً.";
+      return;
+    }
+
+    const items = [];
+    for(let t=0;t<11;t++){
+      const tName = (saved.tableNames && saved.tableNames[t]) ? String(saved.tableNames[t]).trim() : ("الجدول " + (t+1));
+      const tState = saved.tables[t] || {};
+      const picks = tState.picks || [];
+      const regions = tState.regions || [];
+      for(let i=0;i<11;i++){
+        const name = (picks[i] || "").trim();
+        const reg = (regions[i] || "").trim();
+        if(!name) continue;
+        if(reg !== region) continue;
+        const votes = candMap.get(name) || 0;
+        items.push({name, votes, table: tName});
+      }
+    }
+
+    items.sort((a,b)=> (b.votes - a.votes) || a.name.localeCompare(b.name,'ar'));
+
+    if(items.length === 0){
+      empty.style.display = "block";
+      empty.textContent = "لا توجد أسماء ضمن هذه المنطقة بعد (تأكد من اختيار المنطقة في صفحة النتائج).";
+      return;
+    }
+
+    for(const it of items){
+      const tr = document.createElement("tr");
+      const td1 = document.createElement("td"); td1.textContent = it.name;
+      const td2 = document.createElement("td"); td2.textContent = String(it.votes);
+      const td3 = document.createElement("td"); td3.textContent = it.table;
+      tr.appendChild(td1); tr.appendChild(td2); tr.appendChild(td3);
+      tbody.appendChild(tr);
+    }
+  }
+
+
+
+  // ---------- Wire up buttons AFTER DOM ready ----------
+  document.addEventListener("DOMContentLoaded", ()=>{
+    // build input rows always
+    buildInputTable();
+    loadCandidates();
+
+    document.getElementById("goInput").onclick = ()=>showPage("inputPage");
+    document.getElementById("goResults").onclick = ()=>{ showPage("resultsPage"); renderResults(); };
+    document.getElementById("goQuota").onclick = ()=>{ showPage("quotaPage"); renderQuota(); };
+    document.getElementById("goRanking").onclick = ()=>{ showPage("rankingMenuPage"); renderRankingMenu(); };
+    document.getElementById("goDinnieh").onclick = ()=>{ showPage("dinniehPage"); buildDinniehTable(); };
+
+    document.getElementById("rankTripoli").onclick = ()=>{ showPage("rankingPage"); renderRanking("طرابلس"); };
+    document.getElementById("rankDinnieh").onclick = ()=>{ showPage("rankingPage"); renderRanking("الضنية"); };
+    document.getElementById("rankMinieh").onclick = ()=>{ showPage("rankingPage"); renderRanking("المنية"); };
+
+    document.getElementById("backFromRankingMenu").onclick = ()=>showPage("home");
+    document.getElementById("backFromRanking").onclick = ()=>showPage("rankingMenuPage");
+
+    document.getElementById("backFromInput").onclick = ()=>showPage("home");
+    document.getElementById("backFromResults").onclick = ()=>showPage("home");
+    document.getElementById("backFromQuota").onclick = ()=>showPage("home");
+    document.getElementById("backFromDinnieh").onclick = ()=>showPage("home");
+
+    document.getElementById("saveCandidatesBtn").onclick = saveCandidates;
+    document.getElementById("saveResultsBtn").onclick = saveResults;
+  });
+</script>
+
+</body>
+</html>
